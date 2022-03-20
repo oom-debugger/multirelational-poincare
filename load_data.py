@@ -101,7 +101,10 @@ def download_and_extract(drkg_file, path=None, filename=None):
         with open(filename, 'wb') as writer:
             for chunk in f_remote.iter_content(chunk_size=1024*1024):
                 writer.write(chunk)
-        print('Download finished. Unzipping the file...')
+        print('Download finished. Unzipping the file... (%s)' % fn)
+        if not os.path.isfile(fn):
+            raise ValueError('Download unsuccessful!')
+
     else:
         print('tar file already exists! Unzipping...')
         
