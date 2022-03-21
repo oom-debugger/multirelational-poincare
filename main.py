@@ -181,7 +181,8 @@ class Experiment:
             for j, data_batch in enumerate(self.train_dataloader):
                 data_batch = torch.stack(data_batch).t()
 
-                negsamples = torch.Tensor(np.random.choice(
+                negsamples = torch.IntTensor(
+                    np.random.choice(
                         list(self.data_loader.entity_idxs.values()), 
                         size=(data_batch.shape[0], self.nneg)))
 
