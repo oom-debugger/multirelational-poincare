@@ -90,7 +90,7 @@ class Experiment:
         self.nneg = nneg
         self.num_iterations = num_iterations
         self.batch_size = batch_size
-        self.cuda = cuda
+        self.cuda = cuda if not cuda else torch.device('cuda:%s' % rank)
         self.distributed = world_size > 1
         self.rank = rank
         if self.distributed:  # i.e. distributed:
@@ -118,9 +118,9 @@ class Experiment:
             r_idx = torch.tensor(data_point[1])
             e2_idx = torch.tensor(data_point[2])
             if self.cuda:
-                e1_idx = e1_idx.cuda()
-                r_idx = r_idx.cuda()
-                e2_idx = e2_idx.cuda()
+                e1_idx = e1_idx.cuda(self.cuda)
+                r_idx = r_idx.cuda(self.cuda)
+                e2_idx = e2_idx.cuda(self.cuda)
             predictions_s = model.forward(
                     e1_idx.repeat(len(self.data_loader.entities)), 
                     r_idx.repeat(len(self.data_loader.entities)), 
@@ -170,7 +170,7 @@ class Experiment:
         opt = RiemannianSGD(model.parameters(), lr=self.learning_rate, param_names=param_names)
         
         if self.cuda:
-            model.cuda()
+            model.cuda(self.cuda)
             
         print("Starting training...")
         for it in range(1, self.num_iterations+1):
@@ -196,10 +196,10 @@ class Experiment:
 
                 opt.zero_grad()
                 if self.cuda:
-                    e1_idx = e1_idx.cuda()
-                    r_idx = r_idx.cuda()
-                    e2_idx = e2_idx.cuda()
-                    targets = targets.cuda()
+                    e1_idx = e1_idx.cuda(self.cuda)
+                    r_idx = r_idx.cuda(self.cuda)
+                    e2_idx = e2_idx.cuda(self.cuda)
+                    targets = targets.cuda(self.cuda)
 
                 predictions = model.forward(e1_idx, r_idx, e2_idx)      
                 loss = model.loss(predictions, targets)
@@ -276,7 +276,7 @@ if __name__ == '__main__':
     nneg=args.nneg
     model=args.model
     world_size=world_size
-  
+
     mp.spawn(
         main,
         args=(world_size, data_dir, learning_rate, batch_size, num_iterations, 
