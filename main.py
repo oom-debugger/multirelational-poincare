@@ -46,11 +46,11 @@ class DataLoaer:
 
         dataset = Data(data_dir=data_dir)
         if distributed:
-            sampler = DistributedSampler(dataset.train_data, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False)
+            sampler = DistributedSampler(train_data_idxs, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False)
         else:
             sampler = None
         self.train_dataloader = DataLoader(
-                dataset.train_data, batch_size=batch_size, 
+                train_data_idxs, batch_size=batch_size, 
                 pin_memory=pin_memory, num_workers=num_workers, 
                 drop_last=False, shuffle=False, sampler=sampler)
 
@@ -178,14 +178,16 @@ class Experiment:
             model.train()
 
             losses = []
-            for j, data_batch in enumerate(self.train_dataloader):                
-                negsamples = np.random.choice(
+            for j, data_batch in enumerate(self.train_dataloader):
+                data_batch = torch.stack(data_batch).t()
+
+                negsamples = torch.Tensor(np.random.choice(
                         list(self.data_loader.entity_idxs.values()), 
-                        size=(data_batch.shape[0], self.nneg))
-                
-                e1_idx = torch.tensor(np.tile(np.array([data_batch[:, 0]]).T, (1, negsamples.shape[1]+1)))
-                r_idx = torch.tensor(np.tile(np.array([data_batch[:, 1]]).T, (1, negsamples.shape[1]+1)))
-                e2_idx = torch.tensor(np.concatenate((np.array([data_batch[:, 2]]).T, negsamples), axis=1))
+                        size=(data_batch.shape[0], self.nneg)))
+
+                e1_idx = data_batch[:, 0].unsqueeze(0).t().repeat((1, negsamples.shape[1]+1))
+                r_idx = data_batch[:, 1].unsqueeze(0).t().repeat((1, negsamples.shape[1]+1))
+                e2_idx = torch.cat([data_batch[:, 2].unsqueeze(0).t(), negsamples], dim=1)
 
                 targets = np.zeros(e1_idx.shape)
                 targets[:, 0] = 1
