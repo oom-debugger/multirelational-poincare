@@ -4,16 +4,16 @@ from utils import *
 
 
 class MuRP(torch.nn.Module):
-    def __init__(self, d, dim):
+    def __init__(self, entities, relations, dim):
         super(MuRP, self).__init__()
-        self.Eh = torch.nn.Embedding(len(d.entities), dim, padding_idx=0)
-        self.Eh.weight.data = (1e-3 * torch.randn((len(d.entities), dim), dtype=torch.double, device="cuda"))
-        self.rvh = torch.nn.Embedding(len(d.relations), dim, padding_idx=0)
-        self.rvh.weight.data = (1e-3 * torch.randn((len(d.relations), dim), dtype=torch.double, device="cuda"))
-        self.Wu = torch.nn.Parameter(torch.tensor(np.random.uniform(-1, 1, (len(d.relations), 
+        self.Eh = torch.nn.Embedding(len(entities), dim, padding_idx=0)
+        self.Eh.weight.data = (1e-3 * torch.randn((len(entities), dim), dtype=torch.double, device="cuda"))
+        self.rvh = torch.nn.Embedding(len(relations), dim, padding_idx=0)
+        self.rvh.weight.data = (1e-3 * torch.randn((len(relations), dim), dtype=torch.double, device="cuda"))
+        self.Wu = torch.nn.Parameter(torch.tensor(np.random.uniform(-1, 1, (len(relations), 
                                         dim)), dtype=torch.double, requires_grad=True, device="cuda"))
-        self.bs = torch.nn.Parameter(torch.zeros(len(d.entities), dtype=torch.double, requires_grad=True, device="cuda"))
-        self.bo = torch.nn.Parameter(torch.zeros(len(d.entities), dtype=torch.double, requires_grad=True, device="cuda"))
+        self.bs = torch.nn.Parameter(torch.zeros(len(entities), dtype=torch.double, requires_grad=True, device="cuda"))
+        self.bo = torch.nn.Parameter(torch.zeros(len(entities), dtype=torch.double, requires_grad=True, device="cuda"))
         self.loss = torch.nn.BCEWithLogitsLoss()
 
     def forward(self, u_idx, r_idx, v_idx):
@@ -45,18 +45,18 @@ class MuRP(torch.nn.Module):
 
 
 class MuRE(torch.nn.Module):
-    def __init__(self, d, dim):
+    def __init__(self, entities, relations, dim):
         super(MuRE, self).__init__()
-        self.E = torch.nn.Embedding(len(d.entities), dim, padding_idx=0)
+        self.E = torch.nn.Embedding(len(entities), dim, padding_idx=0)
         self.E.weight.data = self.E.weight.data.double()
-        self.E.weight.data = (1e-3 * torch.randn((len(d.entities), dim), dtype=torch.double, device="cuda"))
-        self.Wu = torch.nn.Parameter(torch.tensor(np.random.uniform(-1, 1, (len(d.relations), 
+        self.E.weight.data = (1e-3 * torch.randn((len(entities), dim), dtype=torch.double, device="cuda"))
+        self.Wu = torch.nn.Parameter(torch.tensor(np.random.uniform(-1, 1, (len(relations), 
                                         dim)), dtype=torch.double, requires_grad=True, device="cuda"))
-        self.rv = torch.nn.Embedding(len(d.relations), dim, padding_idx=0)
+        self.rv = torch.nn.Embedding(len(relations), dim, padding_idx=0)
         self.rv.weight.data = self.rv.weight.data.double()
-        self.rv.weight.data = (1e-3 * torch.randn((len(d.relations), dim), dtype=torch.double, device="cuda"))
-        self.bs = torch.nn.Parameter(torch.zeros(len(d.entities), dtype=torch.double, requires_grad=True, device="cuda"))
-        self.bo = torch.nn.Parameter(torch.zeros(len(d.entities), dtype=torch.double, requires_grad=True, device="cuda"))
+        self.rv.weight.data = (1e-3 * torch.randn((len(relations), dim), dtype=torch.double, device="cuda"))
+        self.bs = torch.nn.Parameter(torch.zeros(len(entities), dtype=torch.double, requires_grad=True, device="cuda"))
+        self.bo = torch.nn.Parameter(torch.zeros(len(entities), dtype=torch.double, requires_grad=True, device="cuda"))
         self.loss = torch.nn.BCEWithLogitsLoss()
        
     def forward(self, u_idx, r_idx, v_idx):
