@@ -27,7 +27,9 @@ def get_er_vocab(data, idxs=[0, 1, 2]):
 def setup_distributed_env(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+#    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
 
 class DataLoaer:
     
@@ -158,6 +160,7 @@ class Experiment:
             model = MuRP(self.data_loader.entities, self.data_loader.relations, self.dim)
         else:
             model = MuRE(self.data_loader.entities, self.data_loader.relations, self.dim)
+        loss_fn = model.loss
         if self.distributed:
             # 1. instantiate the model(it's your own model) and move it to the right device using model.to(rank)
             # 2. wrap the model with DDP
@@ -201,8 +204,11 @@ class Experiment:
                     e2_idx = e2_idx.cuda(self.cuda)
                     targets = targets.cuda(self.cuda)
 
-                predictions = model.forward(e1_idx, r_idx, e2_idx)      
-                loss = model.loss(predictions, targets)
+                predictions = model.forward(e1_idx, r_idx, e2_idx)  
+                # since DDP encapsulates the model and its loss function, we
+                # have to make a separate loss function
+                # loss = model.loss(predictions, targets)
+                loss = loss_fn(predictions, targets)
                 loss.backward()
                 opt.step()
                 losses.append(loss.item())
