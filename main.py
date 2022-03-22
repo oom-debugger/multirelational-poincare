@@ -78,7 +78,7 @@ class DataLoaer:
         return data_idxs
 
     def get_test_data_idxs(self):
-        return self.get_data_idxs(self, self.dataset.test_data)
+        return self.get_data_idxs(self.dataset.test_data)
 
     
 class Experiment:
