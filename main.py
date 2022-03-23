@@ -102,11 +102,6 @@ class Experiment:
         self.data_loader = DataLoaer(data_dir, rank, world_size, batch_size)
         self.train_dataloader = self.data_loader.train_dataloader
        
-    def __del__ (self):
-        if self.distributed:
-            dist.destroy_process_group()
-
-
     def evaluate(self, model):
         hits = []
         ranks = []
@@ -126,7 +121,7 @@ class Experiment:
             predictions_s = model.forward(
                     e1_idx.repeat(len(self.data_loader.entities)), 
                     r_idx.repeat(len(self.data_loader.entities)), 
-                    range(len(self.dataset.entities)))
+                    range(len(self.data_loader.entities)))
 
             filt = self.data_loader.sr_vocab[(data_point[0], data_point[1])]
             target_value = predictions_s[e2_idx].item()
@@ -222,7 +217,6 @@ class Experiment:
                     self.evaluate(model)
 
 
-
 def main(rank, 
          world_size,
          data_dir,
@@ -240,6 +234,10 @@ def main(rank,
                             cuda=cuda, nneg=nneg, model=model,
                             rank=rank, world_size=world_size)
     experiment.train_and_eval() 
+    print ('training finishes successfully! Cleaning up...')
+    if self.distributed:
+        dist.destroy_process_group()
+
 
 
 if __name__ == '__main__':
