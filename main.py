@@ -24,11 +24,11 @@ def get_er_vocab(data, idxs=[0, 1, 2]):
     return er_vocab
 
 
-def setup_distributed_env(rank, world_size):
+def setup_distributed_env(backend, rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
 #    dist.init_process_group("nccl", rank=rank, world_size=world_size)
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
 
 
 class DataLoaer:
@@ -86,6 +86,9 @@ class Experiment:
     def __init__(self, data_dir, learning_rate=50, dim=40, nneg=50, model="poincare",
                  num_iterations=500, batch_size=128, cuda=False, 
                  rank=0, world_size=1):
+        # For the GPU parallelism you need to use NCCL. For the cpu parallelism
+        # GLOO should be used.
+        self.backend = 'nccl'
         self.model = model
         self.learning_rate = learning_rate
         self.dim = dim
@@ -97,7 +100,7 @@ class Experiment:
         self.rank = rank
         if self.distributed:  # i.e. distributed:
             # setup the process groups
-            setup_distributed_env(rank, world_size)
+            setup_distributed_env(backend=self.backend, rank=rank, world_size=world_size)
         # prepare the dataloader, note that it must be called after setup
         self.data_loader = DataLoaer(data_dir, rank, world_size, batch_size)
         self.train_dataloader = self.data_loader.train_dataloader
@@ -170,7 +173,7 @@ class Experiment:
         if self.cuda:
             model.cuda(self.cuda)
             
-        print("Starting training...")
+        print("Starting training for worker %s..." % self.rank)
         for it in range(1, self.num_iterations+1):
             start_train = time.time()
             model.train()
@@ -204,9 +207,20 @@ class Experiment:
                 # have to make a separate loss function
                 # loss = model.loss(predictions, targets)
                 loss = loss_fn(predictions, targets)
+                if self.distributed and self.backend != 'nccl':
+                    print('process %s reaches barrier for the forward function! Waiting for the master process....' % self.rank)
+                    dist.barrier()
                 loss.backward()
+                if self.distributed and self.backend != 'nccl':
+                    print('process %s reaches barrier for the backward function! Waiting for the master process!' % self.rank)
+                    dist.barrier()
                 opt.step()
+                if self.distributed and self.backend != 'nccl':
+                    print('process %s reaches barrier wating for the optimization function! Wating for the master process...' % self.rank)
+                    dist.barrier()
+
                 losses.append(loss.item())
+            print ('rank:', self.rank)
             print(it)
             print(time.time()-start_train)    
             print(np.mean(losses))
@@ -228,6 +242,7 @@ def main(rank,
          nneg, 
          model):
     # read data
+    print ('Initiating rank %s' % rank)
     experiment = Experiment(data_dir=data_dir,
                             learning_rate=learning_rate, batch_size=batch_size, 
                             num_iterations=num_iterations, dim=dim, 
@@ -235,7 +250,8 @@ def main(rank,
                             rank=rank, world_size=world_size)
     experiment.train_and_eval() 
     print ('training finishes successfully! Cleaning up...')
-    if self.distributed:
+    if world_size > 1:
+        dist.barrier()
         dist.destroy_process_group()
 
 
