@@ -28,6 +28,7 @@ def setup_distributed_env(backend, rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
 #    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    torch.cuda.set_device(rank)
     dist.init_process_group(backend, rank=rank, world_size=world_size)
 
 
@@ -220,15 +221,15 @@ class Experiment:
                     dist.barrier()
 
                 losses.append(loss.item())
-            print ('rank:', self.rank)
-            print(it)
-            print(time.time()-start_train)    
-            print(np.mean(losses))
-            model.eval()
-            with torch.no_grad():
-                if not it%5:
-                    print("Test:")
-                    self.evaluate(model)
+            if self.rank == 0:
+                print(it)
+                print(time.time()-start_train)    
+                print(np.mean(losses))
+                model.eval()
+                with torch.no_grad():
+                    if not it%5:
+                        print("Test:")
+                        self.evaluate(model)
 
 
 def main(rank, 
@@ -249,7 +250,6 @@ def main(rank,
                             cuda=cuda, nneg=nneg, model=model,
                             rank=rank, world_size=world_size)
     experiment.train_and_eval() 
-    print ('training finishes successfully! Cleaning up...')
     if world_size > 1:
         dist.barrier()
         dist.destroy_process_group()
